@@ -31,6 +31,26 @@ impl Image {
         Self { data: data }
     }
 
+    fn rows_projection(&self) -> na::DVector<f32> {
+        let mut v = na::DVector::<f32>::zeros(self.data.nrows());
+        v.fill(1.);
+        self.data.clone() * v
+    }
+
+    fn cols_projection(&self) -> na::DVector<f32> {
+        let mut v = na::DVector::<f32>::zeros(self.data.nrows());
+        v.fill(1.);
+        self.data.clone().transpose() * v
+    }
+}
+
+struct ImageInferrer {
+    pub image: Image,
+    pub rows_proj: na::DVector<f32>,
+    pub cols_proj: na::DVector<f32>,
+}
+
+impl ImageInferrer {
     fn infer_by_back_projection(rows_proj: na::DVector<f32>, cols_proj: na::DVector<f32>) -> Self {
         let mut data = na::DMatrix::<f32>::zeros(rows_proj.len(), cols_proj.len());
 
@@ -47,19 +67,8 @@ impl Image {
             }
         }
 
-        Image::new(data)
-    }
-
-    fn rows_projection(&self) -> na::DVector<f32> {
-        let mut v = na::DVector::<f32>::zeros(self.data.nrows());
-        v.fill(1.);
-        self.data.clone() * v
-    }
-
-    fn cols_projection(&self) -> na::DVector<f32> {
-        let mut v = na::DVector::<f32>::zeros(self.data.nrows());
-        v.fill(1.);
-        self.data.clone().transpose() * v
+        let image = Image::new(data);
+        Self { image: image, rows_proj: rows_proj, cols_proj: cols_proj }
     }
 }
 
@@ -67,6 +76,6 @@ fn main() {
     let orig_image = original_image();
     let rows_proj = orig_image.rows_projection();
     let cols_proj = orig_image.cols_projection();
-    let inferred = Image::infer_by_back_projection(rows_proj, cols_proj);
-    println!("{}", inferred);
+    let inferred = ImageInferrer::infer_by_back_projection(rows_proj, cols_proj);
+    println!("{}", inferred.image);
 }
