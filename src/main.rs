@@ -4,8 +4,20 @@ use std::fmt;
 // 逆投影をした後に反復的に改善を繰り返すことで、より鮮明な像を得ることができるのではないか？
 // 改善：列、行の合計とスキャン値を比較し、合計値がスキャン値に近づくように修正を加える。
 
+fn original_image() -> Image {
+    let mut original_image = na::DMatrix::<f32>::zeros(5, 5);
+    original_image[(1, 2)] = 10.0;
+    original_image[(2, 1)] = 10.0;
+    original_image[(2, 2)] = 10.0;
+    original_image[(2, 3)] = 10.0;
+    original_image[(3, 1)] = 10.0;
+    original_image[(3, 2)] = 10.0;
+    original_image[(3, 3)] = 10.0;
+    return Image::new(original_image);
+}
+
 struct Image {
-    pub data: na::DMatrix<i32>
+    pub data: na::DMatrix<f32>
 }
 
 impl fmt::Display for Image {
@@ -15,38 +27,46 @@ impl fmt::Display for Image {
 }
 
 impl Image {
-    fn new(data: na::DMatrix<i32>) -> Self {
+    fn new(data: na::DMatrix<f32>) -> Self {
         Self { data: data }
     }
 
-    fn rows_projection(&self) -> na::DVector<i32> {
-        let mut v = na::DVector::<i32>::zeros(self.data.nrows());
-        v.fill(1);
+    fn infer_by_back_projection(rows_proj: na::DVector<f32>, cols_proj: na::DVector<f32>) -> Self {
+        let mut data = na::DMatrix::<f32>::zeros(rows_proj.len(), cols_proj.len());
+
+        for (ri, proj_val) in rows_proj.iter().enumerate() {
+            let mean_val = proj_val / rows_proj.len() as f32;
+            for ci in 0..cols_proj.len() {
+                data[(ri, ci)] += mean_val;
+            }
+        }
+        for (ci, proj_val) in cols_proj.iter().enumerate() {
+            let mean_val = proj_val / cols_proj.len() as f32;
+            for ri in 0..rows_proj.len() {
+                data[(ri, ci)] += mean_val;
+            }
+        }
+
+        Image::new(data)
+    }
+
+    fn rows_projection(&self) -> na::DVector<f32> {
+        let mut v = na::DVector::<f32>::zeros(self.data.nrows());
+        v.fill(1.);
         self.data.clone() * v
     }
 
-    fn cols_projection(&self) -> na::DVector<i32> {
-        let mut v = na::DVector::<i32>::zeros(self.data.nrows());
-        v.fill(1);
+    fn cols_projection(&self) -> na::DVector<f32> {
+        let mut v = na::DVector::<f32>::zeros(self.data.nrows());
+        v.fill(1.);
         self.data.clone().transpose() * v
     }
 }
 
-fn original_image() -> Image {
-    let mut original_image = na::DMatrix::<i32>::zeros(5, 5);
-    original_image[(1, 2)] = 10;
-    original_image[(2, 1)] = 10;
-    original_image[(2, 2)] = 10;
-    original_image[(2, 3)] = 10;
-    original_image[(3, 1)] = 10;
-    original_image[(3, 2)] = 10;
-    original_image[(3, 3)] = 10;
-    return Image::new(original_image);
-}
-
 fn main() {
     let orig_image = original_image();
-    println!("{}", orig_image);
-    println!("{}", orig_image.rows_projection());
-    println!("{}", orig_image.cols_projection());
+    let rows_proj = orig_image.rows_projection();
+    let cols_proj = orig_image.cols_projection();
+    let inferred = Image::infer_by_back_projection(rows_proj, cols_proj);
+    println!("{}", inferred);
 }
