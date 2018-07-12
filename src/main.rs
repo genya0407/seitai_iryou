@@ -70,12 +70,34 @@ impl ImageInferrer {
         let image = Image::new(data);
         Self { image: image, rows_proj: rows_proj, cols_proj: cols_proj }
     }
+
+    fn adjust(&mut self) {
+        for (ri, (computed_val, target_val)) in self.image.rows_projection().iter().zip(self.rows_proj.iter()).enumerate() {
+            let diff = target_val - computed_val;
+            let mean_val = diff / self.image.data.ncols() as f32;
+            for ci in 0..self.image.data.ncols() {
+                self.image.data[(ri, ci)] = 0.0_f32.max(self.image.data[(ri, ci)] + mean_val);
+            }
+        }
+        for (ci, (computed_val, target_val)) in self.image.cols_projection().iter().zip(self.cols_proj.iter()).enumerate() {
+            let diff = target_val - computed_val;
+            let mean_val = diff / self.image.data.nrows() as f32;
+            for ri in 0..self.image.data.nrows() {
+                self.image.data[(ri, ci)] = 0.0_f32.max(self.image.data[(ri, ci)] + mean_val);
+            }
+        }
+    }
 }
 
 fn main() {
     let orig_image = original_image();
     let rows_proj = orig_image.rows_projection();
     let cols_proj = orig_image.cols_projection();
-    let inferred = ImageInferrer::infer_by_back_projection(rows_proj, cols_proj);
+    let mut inferred = ImageInferrer::infer_by_back_projection(rows_proj, cols_proj);
+    for _ in 0..1000 {
+        inferred.adjust();
+    }
+    println!("{}", inferred.image);
+    inferred.image.data.apply(|val| val.round());
     println!("{}", inferred.image);
 }
